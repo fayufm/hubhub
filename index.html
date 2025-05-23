@@ -1,0 +1,708 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>HubHub - GitHub项目浏览器</title>
+  <link rel="stylesheet" href="styles.css">
+  <!-- 性能优化CSS -->
+  <style id="performance-css">
+    /* 性能优化样式 - 减少动画和过渡效果 */
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+        scroll-behavior: auto !important;
+      }
+    }
+
+    /* 低端设备样式类 */
+    .low-performance-mode * {
+      transition-duration: 0.01ms !important;
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transform: none !important;
+      box-shadow: none !important;
+      text-shadow: none !important;
+    }
+
+    .low-performance-mode .spinner, 
+    .low-performance-mode .loading-indicator {
+      animation: none !important;
+    }
+
+    .low-performance-mode .repo-item:hover {
+      transform: none !important;
+    }
+
+    .low-performance-mode .markdown-body img {
+      max-width: 90%;
+      height: auto;
+    }
+  </style>
+  <style>
+    /* 初始页面的居中搜索栏样式 */
+    .center-search-container {
+      position: fixed;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      width: 100%;
+      max-width: 600px;
+      padding: 20px;
+      z-index: 100;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 20px;
+      opacity: 0;
+      visibility: hidden;
+      /* 确保初始位置固定且过渡平滑 */
+      will-change: opacity, visibility;
+      transform: translate(-50%, -50%) !important;
+      transition: opacity 0.3s ease, visibility 0.3s ease;
+    }
+    
+    .center-search-container.active {
+      opacity: 1;
+      visibility: visible;
+      /* 确保激活时也保持中心位置 */
+      transform: translate(-50%, -50%) !important;
+    }
+    
+    .center-search-area {
+      display: flex;
+      gap: 12px;
+      width: 100%;
+      align-items: center;
+    }
+    
+    .center-search-input {
+      flex: 1;
+      height: 56px;
+      padding: 10px 20px;
+      font-size: 18px;
+      border: 2px solid var(--border-color);
+      border-radius: 28px;
+      background-color: var(--card-bg-color);
+      color: var(--text-color);
+      box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+      transition: border-color 0.3s ease, box-shadow 0.3s ease;
+    }
+    
+    .center-search-input:focus {
+      outline: none;
+      border-color: var(--primary-color);
+      box-shadow: 0 5px 20px rgba(0, 0, 0, 0.15);
+    }
+    
+    .center-search-button {
+      width: 56px;
+      height: 56px;
+      font-size: 20px;
+      background-color: var(--primary-color);
+      color: white;
+      border: none;
+      border-radius: 50%;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      box-shadow: 0 5px 15px rgba(0, 0, 0, 0.15);
+      transition: transform 0.3s ease, background-color 0.3s ease;
+    }
+    
+    .center-search-button:hover {
+      transform: scale(1.05);
+      background-color: var(--primary-hover-color);
+    }
+    
+    /* 底部工具按钮的位置调整 */
+    .bottom-tools-container {
+      position: fixed;
+      bottom: 20px;
+      width: 100%;
+      display: flex;
+      justify-content: center;
+      gap: 20px;
+      z-index: 90;
+      transition: transform 0.5s ease, opacity 0.5s ease;
+    }
+    
+    .bottom-tools-container.initial-state {
+      transform: translateY(0);
+      opacity: 1;
+    }
+    
+    .bottom-tools-container.moved {
+      transform: translateY(60px);
+      opacity: 0;
+    }
+  </style>
+  <style>
+    /* 修复z-index问题 */
+    #settings-view {
+      z-index: 1000 !important;
+    }
+    #settings-overlay {
+      z-index: 999 !important;
+    }
+    .center-search-container {
+      z-index: 100 !important;
+    }
+    .bottom-tools-container {
+      z-index: 90 !important;
+    }
+    .bottom-control-bar {
+      z-index: 90 !important;
+    }
+    /* 确保窗口控制按钮在最上层 */
+    .window-controls {
+      z-index: 1100 !important;
+      position: relative;
+    }
+    .window-control {
+      z-index: 1101 !important;
+      position: relative;
+    }
+    
+    /* 确保模态框固定在中心位置，不受鼠标移动影响 */
+    body.modal-open {
+      pointer-events: none; /* 阻止鼠标事件 */
+    }
+    
+    body.modal-open .tooltip,
+    body.modal-open #settings-view,
+    body.modal-open #settings-overlay,
+    body.modal-open .close-settings,
+    body.modal-open .close-tooltip {
+      pointer-events: auto; /* 重新启用模态框上的鼠标事件 */
+    }
+    
+    body.modal-open .tooltip-content,
+    body.modal-open #settings-view .settings-section,
+    body.modal-open #settings-view {
+      pointer-events: auto; /* 重新启用内容区域的鼠标事件 */
+      overflow-y: auto; /* 确保可以滚动 */
+    }
+  </style>
+  <style>
+    /* 全屏模式样式 */
+    body.is-fullscreen .title-bar {
+      padding-top: 0;
+    }
+    
+    body.is-fullscreen .window-controls {
+      top: 0;
+    }
+    
+    @media (max-width: 768px) {
+      .repo-detail-container {
+        flex-direction: column;
+      }
+      
+      .repo-detail-sidebar,
+      .repo-detail-content {
+        width: 100%;
+      }
+    }
+    
+    /* 加载更多按钮样式 */
+    .load-more-container {
+      width: 100%;
+      display: flex;
+      justify-content: center;
+      margin: 30px 0;
+      padding: 15px 0;
+    }
+    
+    .load-more-button {
+      padding: 10px 20px;
+      background-color: var(--primary-color);
+      color: white;
+      border: none;
+      border-radius: 20px;
+      cursor: pointer;
+      font-size: 14px;
+      font-weight: bold;
+      transition: background-color 0.3s ease, transform 0.2s ease;
+      box-shadow: 0 3px 8px rgba(0, 0, 0, 0.1);
+    }
+    
+    .load-more-button:hover {
+      background-color: var(--primary-hover-color);
+      transform: translateY(-2px);
+      box-shadow: 0 5px 12px rgba(0, 0, 0, 0.15);
+    }
+    
+    .load-more-button:disabled {
+      background-color: #aaa;
+      cursor: not-allowed;
+      transform: none;
+      box-shadow: none;
+    }
+    
+    .load-more-button:active {
+      transform: translateY(1px);
+      box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+    }
+  </style>
+  
+  <!-- 添加滚动优化相关CSS -->
+  <style id="scroll-optimization-css">
+    /* 启用硬件加速，优化滚动性能 */
+    html {
+      scroll-behavior: auto; /* 禁用平滑滚动以提高性能 */
+    }
+    
+    body {
+      overflow-anchor: none; /* 防止自动滚动锚点调整 */
+    }
+    
+    /* 鼠标悬停优化 */
+    .repo-item {
+      touch-action: none; /* 优化触摸操作 */
+    }
+    
+    body, #content-container, .results-container, .repo-item, #search-results,
+    #trending-view, #random-view, #repo-detail, #readme-content, 
+    #releases-content, #code-content {
+      will-change: transform;
+      transform: translateZ(0);
+      backface-visibility: hidden;
+      perspective: 1000px;
+      -webkit-overflow-scrolling: touch; /* iOS流畅滚动 */
+    }
+    
+    /* 防止非必要元素在滚动时重绘 */
+    .repo-item, .release-item, .code-file-item {
+      contain: style paint; /* 移除layout约束，允许元素高度自动调整 */
+      box-shadow: none !important; /* 禁用阴影以提高性能 */
+    }
+    
+    /* 滚动时减少视觉效果 */
+    .scrolling * {
+      pointer-events: none !important;
+      transition: none !important;
+      animation-play-state: paused !important;
+    }
+    
+    /* 滚动过程中禁用所有动画效果 */
+    .scrolling .repo-item:hover {
+      transform: none !important;
+      box-shadow: none !important;
+    }
+    
+    /* 低性能模式时固定滚动行为 */
+    .optimize-scroll {
+      overflow-anchor: none !important;
+    }
+    
+    .optimize-scroll .repo-item, 
+    .optimize-scroll .release-item, 
+    .optimize-scroll .code-file-item {
+      box-shadow: none !important;
+      transition: none !important;
+      animation: none !important;
+    }
+    
+    /* 优化大型容器的渲染 */
+    .results-container {
+      contain: style paint; /* 放宽容器约束，避免布局问题 */
+      content-visibility: auto;
+      contain-intrinsic-size: 0 500px;
+      display: block !important; /* 确保块级显示 */
+      margin-top: 0 !important; /* 移除负边距 */
+      padding-top: 10px !important; /* 减少顶部内边距 */
+    }
+    
+    /* 优化图像加载 */
+    img {
+      content-visibility: auto;
+      contain-intrinsic-size: 0 300px;
+    }
+    
+    /* 修复项目卡片布局问题 */
+    .repo-item {
+      width: calc(100% - 32px);
+      margin: 0 16px 20px 16px !important; /* 使用正常底部边距代替负边距 */
+      min-height: 110px; /* 确保最小高度与样式表中定义的高度一致 */
+      height: auto; /* 允许卡片根据内容自动调整高度 */
+      contain: style paint; /* 移除layout约束，允许元素高度自动调整 */
+      position: relative !important; /* 强制相对定位 */
+      display: flex !important; /* 确保使用flex布局 */
+      flex-direction: row !important; /* 强制水平排列 */
+      clear: both !important; /* 清除浮动 */
+      z-index: 1; /* 确保卡片层级正确 */
+      padding: 16px 20px !important; /* 确保内边距与样式表一致 */
+    }
+    
+    /* 确保结果容器中的元素间距正确 */
+    .results-container {
+      gap: 20px !important; /* 确保卡片之间有足够间距 */
+    }
+  </style>
+</head>
+<body>
+  <div id="background-overlay"></div>
+  <!-- 我花主题中心图片 -->
+  <img id="flower-image" class="flower-image" alt="花朵图片">
+  <header>
+    <div class="header-container">
+      <div class="window-controls">
+        <button id="minimize-button" class="window-control">—</button>
+        <button id="close-button" class="window-control">✕</button>
+      </div>
+      <nav>
+        <button id="trending-button" class="nav-button" title="热门项目">
+          <svg viewBox="0 0 24 24" width="16" height="16" stroke="currentColor" stroke-width="2" fill="none">
+            <path d="M12 20V10" />
+            <path d="M18 20V4" />
+            <path d="M6 20v-4" />
+          </svg>
+          <span>热门</span>
+        </button>
+        <button id="random-button" class="nav-button" title="随机项目">
+          <svg viewBox="0 0 24 24" width="16" height="16" stroke="currentColor" stroke-width="2" fill="none">
+            <path d="M8 3v3a2 2 0 0 1-2 2H3m18 0h-3a2 2 0 0 1-2-2V3m0 18v-3a2 2 0 0 1 2-2h3M3 16h3a2 2 0 0 1 2 2v3" />
+          </svg>
+          <span>随机</span>
+        </button>
+      </nav>
+    </div>
+  </header>
+
+  <main>
+    <div id="content-container">
+      <!-- 搜索结果将在这里显示 -->
+      <div id="search-results" class="active-view"></div>
+      
+      <!-- 项目详情在这里显示 -->
+      <div id="repo-detail" class="hidden-view">
+        <div class="repo-header">
+          <div class="repo-header-content">
+          <h2 id="repo-name"></h2>
+          <div id="repo-meta"></div>
+          </div>
+          <button id="back-button" title="返回上一页">
+            <svg viewBox="0 0 24 24" width="16" height="16" stroke="currentColor" stroke-width="2" fill="none">
+              <path d="M19 12H5M12 19l-7-7 7-7"/>
+            </svg>
+            <span>返回</span>
+          </button>
+        </div>
+        
+        <div class="tabs">
+          <button class="tab-button active" data-tab="readme">README</button>
+          <button class="tab-button" data-tab="releases">版本</button>
+          <button class="tab-button" data-tab="code">代码</button>
+        </div>
+        
+        <div id="tab-content">
+          <div id="readme-content" class="tab-panel active"></div>
+          <div id="releases-content" class="tab-panel"></div>
+          <div id="code-content" class="tab-panel"></div>
+        </div>
+      </div>
+      
+      <!-- 热门项目页面 -->
+      <div id="trending-view" class="hidden-view"></div>
+      
+      <!-- 随机项目页面 -->
+      <div id="random-view" class="hidden-view"></div>
+    </div>
+  </main>
+  
+  <!-- 设置模态框遮罩 -->
+  <div id="settings-overlay"></div>
+  
+  <!-- 设置页面作为模态框 -->
+  <div id="settings-view">
+    <button id="close-settings" class="close-settings">✕</button>
+    <h2>设置</h2>
+    
+    <div class="settings-section">
+      <h3>主题设置</h3>
+      <div class="theme-options">
+        <div class="theme-option">
+          <input type="radio" id="theme-light" name="theme" value="light">
+          <label for="theme-light">浅色主题</label>
+        </div>
+        <div class="theme-option">
+          <input type="radio" id="theme-dark" name="theme" value="dark">
+          <label for="theme-dark">深色主题</label>
+        </div>
+        <div class="theme-option">
+          <input type="radio" id="theme-github" name="theme" value="github">
+          <label for="theme-github">GitHub主题</label>
+        </div>
+      </div>
+      
+      <div class="special-theme-options">
+        <div class="flower-theme-container">
+          <div class="special-theme-option">
+            <input type="checkbox" id="theme-flower" name="special-theme" value="flower">
+            <label for="theme-flower">我花</label>
+          </div>
+          
+          <!-- 将调试面板添加到这里，在"我花"选项下方 -->
+          <div id="flower-debug-panel" class="flower-debug-panel">
+            <div class="debug-header">我花调试面板</div>
+            <div class="debug-content">
+              <div class="debug-row">
+                <label>图层位置 (z-index):</label>
+                <div class="debug-controls">
+                  <button class="debug-btn" id="flower-z-down">-</button>
+                  <span id="flower-z-value">-1</span>
+                  <button class="debug-btn" id="flower-z-up">+</button>
+                </div>
+              </div>
+              <div class="debug-row">
+                <label>模糊度 (px):</label>
+                <div class="debug-controls">
+                  <button class="debug-btn" id="flower-blur-down">-</button>
+                  <span id="flower-blur-value">0</span>
+                  <button class="debug-btn" id="flower-blur-up">+</button>
+                </div>
+              </div>
+              <div class="debug-row">
+                <label>显示位置:</label>
+                <div class="debug-controls position-controls">
+                  <button class="debug-btn pos-btn" id="flower-pos-up">↑</button>
+                  <div class="pos-row">
+                    <button class="debug-btn pos-btn" id="flower-pos-left">←</button>
+                    <button class="debug-btn pos-btn" id="flower-pos-center">○</button>
+                    <button class="debug-btn pos-btn" id="flower-pos-right">→</button>
+                  </div>
+                  <button class="debug-btn pos-btn" id="flower-pos-down">↓</button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      
+      <div class="color-picker-section">
+        <label for="primary-color">主色调:</label>
+        <input type="color" id="primary-color" value="#2ea44f">
+        <button id="apply-theme" class="settings-button">应用主题</button>
+      </div>
+    </div>
+    
+    <div class="settings-section">
+      <h3>背景设置</h3>
+      <div class="background-options">
+        <div class="background-option">
+          <input type="radio" id="bg-none" name="background" value="none" checked>
+          <label for="bg-none">无背景</label>
+        </div>
+        <div class="background-option">
+          <input type="radio" id="bg-custom" name="background" value="custom">
+          <label for="bg-custom">自定义背景</label>
+        </div>
+      </div>
+      
+      <div class="background-custom-section" id="bg-custom-section">
+        <div class="bg-upload-section">
+          <label for="bg-upload">上传本地图片:</label>
+          <input type="file" id="bg-upload" accept="image/*" style="display:none">
+          <button id="bg-upload-button" class="settings-button">选择文件</button>
+          <span id="bg-filename"></span>
+        </div>
+        
+        <div class="bg-url-section">
+          <label for="bg-url">图片URL:</label>
+          <input type="text" id="bg-url" placeholder="输入图片的URL">
+          <button id="bg-url-apply" class="settings-button">应用</button>
+        </div>
+        
+        <div class="bg-opacity-section">
+          <label for="bg-opacity">背景透明度:</label>
+          <input type="range" id="bg-opacity" min="0.1" max="1" step="0.1" value="0.3">
+          <span id="bg-opacity-value">0.3</span>
+        </div>
+        
+        <div class="bg-blur-section">
+          <label for="bg-blur">背景模糊度:</label>
+          <input type="range" id="bg-blur" min="0" max="20" step="1" value="5">
+          <span id="bg-blur-value">5px</span>
+        </div>
+        
+        <div class="bg-preview">
+          <div id="bg-preview-container">
+            <span>背景预览</span>
+          </div>
+        </div>
+      </div>
+    </div>
+    
+    <div class="settings-section">
+      <h3>下载设置</h3>
+      <div class="download-path-section">
+        <label for="download-path">默认下载目录:</label>
+        <input type="text" id="download-path" readonly>
+        <button id="browse-download-path" class="settings-button">浏览...</button>
+      </div>
+    </div>
+    
+    <div class="settings-section">
+      <h3>GitHub设置</h3>
+      <div class="token-section">
+        <label for="github-token">GitHub Token:</label>
+        <input type="text" id="github-token" placeholder="输入您的GitHub Token">
+        <button id="save-token" class="settings-button">保存Token</button>
+      </div>
+      <p class="token-info">用于增加API请求限制和访问私有仓库。<a href="https://github.com/settings/tokens" target="_blank">如何获取Token?</a></p>
+    </div>
+    
+    <div class="settings-section">
+      <h3>赞助作者</h3>
+      <div class="sponsor-section">
+        <p>您的支持是我持续改进的动力！</p>
+        <div class="sponsor-plans">
+          <div class="sponsor-plan">
+            <h4>方案一</h4>
+            <ul>
+              <li>提前看到新作品</li>
+              <li>加入专属社区</li>
+              <li>解锁幕后内容</li>
+            </ul>
+          </div>
+          <div class="sponsor-plan">
+            <h4>方案二</h4>
+            <ul>
+              <li>包含方案一的所有内容</li>
+              <li>创作过程分享、教学</li>
+            </ul>
+          </div>
+          <div class="sponsor-plan">
+            <h4>方案三</h4>
+            <ul>
+              <li>作者可以做一些定制内容</li>
+              <li>交流想法</li>
+              <li>加入新的专属社区</li>
+            </ul>
+          </div>
+        </div>
+        <button id="sponsor-button" class="primary-button sponsor-button">赞助作者</button>
+      </div>
+    </div>
+    
+    <div class="settings-actions">
+      <button id="save-settings" class="primary-button">保存设置</button>
+      <button id="reset-settings">恢复默认</button>
+    </div>
+  </div>
+  
+  <!-- 初始页面中心搜索栏 -->
+  <div id="center-search-container" class="center-search-container active">
+    <div class="center-search-area">
+      <input type="text" id="center-search-input" class="center-search-input" placeholder="搜索GitHub项目..." title="支持GitHub链接直接搜索或使用高级搜索语法">
+      <button id="center-search-button" class="center-search-button" title="搜索GitHub项目"><span id="center-search-icon">U_U</span></button>
+    </div>
+  </div>
+  
+  <!-- 底部工具按钮 -->
+  <div class="bottom-tools-container initial-state" id="bottom-tools-container">
+    <button id="bottom-settings-button" class="settings-button" title="设置">
+      <svg viewBox="0 0 24 24" width="24" height="24" stroke="currentColor" stroke-width="2" fill="none">
+        <path d="M12 2a2 2 0 0 1 2 2c0 .74-.4 1.38-1 1.72v.06a7 7 0 0 1 5.33 6.5 1 1 0 0 0 1 .72H20a2 2 0 1 1 0 4h-.18a8.58 8.58 0 0 1-.17.66h.01A2 2 0 1 1 16 19.94a7.02 7.02 0 0 1-3.95-1.28L12 18l-.05.66a7.02 7.02 0 0 1-3.9 1.28l-.05.06a2 2 0 1 1-3.66-1.61l.01-.23a7 7 0 0 1-.14-.66H4a2 2 0 1 1 0-4h.72a1 1 0 0 0 .97-.72 7 7 0 0 1 5.27-6.5v-.05A2 2 0 0 1 10 4a2 2 0 0 1 2-2z"></path>
+        <circle cx="12" cy="12" r="3"></circle>
+      </svg>
+    </button>
+    <button id="bottom-search-help-button" title="搜索帮助">?</button>
+  </div>
+  
+  <!-- 底部控制栏 -->
+  <div class="bottom-control-bar initial-state" id="bottom-control-bar">
+    <div class="settings-button-container">
+      <button id="settings-button" title="设置">
+        <svg viewBox="0 0 24 24" width="24" height="24" stroke="currentColor" stroke-width="2" fill="none">
+          <path d="M12 2a2 2 0 0 1 2 2c0 .74-.4 1.38-1 1.72v.06a7 7 0 0 1 5.33 6.5 1 1 0 0 0 1 .72H20a2 2 0 1 1 0 4h-.18a8.58 8.58 0 0 1-.17.66h.01A2 2 0 1 1 16 19.94a7.02 7.02 0 0 1-3.95-1.28L12 18l-.05.66a7.02 7.02 0 0 1-3.9 1.28l-.05.06a2 2 0 1 1-3.66-1.61l.01-.23a7 7 0 0 1-.14-.66H4a2 2 0 1 1 0-4h.72a1 1 0 0 0 .97-.72 7 7 0 0 1 5.27-6.5v-.05A2 2 0 0 1 10 4a2 2 0 0 1 2-2z"></path>
+          <circle cx="12" cy="12" r="3"></circle>
+        </svg>
+      </button>
+    </div>
+    <div class="search-area">
+      <input type="text" id="search-input" placeholder="" title="支持GitHub链接直接搜索或使用高级搜索语法">
+      <button id="search-button" title="搜索GitHub项目"><span id="search-icon">U_U</span></button>
+      <button id="search-help-button" title="搜索帮助">?</button>
+    </div>
+  </div>
+  
+  <!-- 搜索帮助提示 -->
+  <div id="search-tooltip" class="tooltip">
+    <button id="close-tooltip" class="close-tooltip">×</button>
+    <h3>搜索帮助</h3>
+    <div class="tooltip-content">
+      <p>您可以使用以下方式搜索：</p>
+      <ul>
+        <li><strong>关键词搜索</strong>: 输入关键词搜索项目名称和描述</li>
+        <li><strong>GitHub链接</strong>: 直接粘贴GitHub仓库链接</li>
+        <li><strong>高级搜索语法</strong>: 使用GitHub支持的高级搜索语法</li>
+        </ul>
+      <p>高级搜索示例：</p>
+        <ul>
+        <li><code>javascript game stars:>1000</code> - 星标超过1000的JavaScript游戏</li>
+        <li><code>framework language:python</code> - Python语言的框架</li>
+        <li><code>react created:>2023-01-01</code> - 2023年之后创建的React项目</li>
+        </ul>
+      
+      <!-- 添加API访问提示区域 -->
+      <div class="api-limit-info">
+        <h4>API访问限制</h4>
+        <div id="api-limit-status" class="api-limit-status">
+          <div class="api-limit-loading">加载中...</div>
+        </div>
+        <div class="api-limit-actions">
+          <a href="https://github.com/settings/tokens" id="create-token-link" class="create-token-button" target="_blank">创建GitHub Token</a>
+          <button id="refresh-api-limit" class="refresh-api-limit-button">刷新</button>
+      </div>
+        <p class="api-limit-note">GitHub默认限制未授权请求为每小时60次，使用个人访问令牌可提高到每小时5000次</p>
+      </div>
+    </div>
+  </div>
+
+  <script src="renderer.js"></script>
+  
+  <!-- 下载提示和通知 -->
+  <div id="download-indicator-container" class="download-indicator-container">
+    <div id="download-indicator" class="download-indicator">
+      <div class="download-icon">
+        <svg viewBox="0 0 24 24" width="24" height="24" stroke="currentColor" stroke-width="2" fill="none">
+          <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+          <polyline points="7 10 12 15 17 10"></polyline>
+          <line x1="12" y1="15" x2="12" y2="3"></line>
+        </svg>
+      </div>
+      <div class="download-count">0</div>
+    </div>
+  </div>
+  
+  <div id="download-notifications-container" class="download-notifications-container"></div>
+  
+  <!-- 自定义消息提示框容器 -->
+  <div id="message-notification-container" class="message-notification-container"></div>
+
+  <style>
+    /* 确保tooltip在初始状态时正确定位 */
+    #search-tooltip {
+      position: fixed !important;
+      top: 50% !important;
+      left: 50% !important;
+      transform: translate(-50%, -50%) !important;
+      display: none; /* 默认不显示 */
+      opacity: 0; /* 默认透明 */
+      visibility: hidden;
+    }
+
+    #search-tooltip.active {
+      display: block;
+      opacity: 1;
+      visibility: visible;
+    }
+  </style>
+</body>
+</html> 
