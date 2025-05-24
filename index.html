@@ -1,0 +1,381 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>HubHub - GitHub项目搜索工具</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <!-- 自定义标题栏 -->
+    <div class="titlebar">
+        <div class="titlebar-drag-region"></div>
+        <div class="window-title">HubHub - GitHub项目搜索工具</div>
+        <div class="window-controls-container">
+            <div class="window-controls">
+                <button class="window-control window-close" id="window-close">
+                    <svg width="12" height="12" viewBox="0 0 12 12">
+                        <path d="M6 5.293l4.789-4.79.707.708-4.79 4.79 4.79 4.789-.707.707-4.79-4.79-4.789 4.79-.707-.707L5.293 6 .502 1.211 1.21.504 6 5.294z"/>
+                    </svg>
+                </button>
+                <button class="window-control window-minimize" id="window-minimize">
+                    <svg width="12" height="12" viewBox="0 0 12 12">
+                        <path d="M1 6h10v1H1z"/>
+                    </svg>
+                </button>
+                <button class="window-control window-maximize" id="window-maximize">
+                    <svg width="12" height="12" viewBox="0 0 12 12" class="maximize-icon">
+                        <path d="M1 1v10h10V1H1zm9 9H2V2h8v8z"/>
+                    </svg>
+                    <svg width="12" height="12" viewBox="0 0 12 12" class="restore-icon" style="display:none;">
+                        <path d="M3 1v3H1v7h7V9h3V1H3zm6 8H2V5h7v4zm2-6H4V2h7v1z"/>
+                    </svg>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 主内容容器 -->
+    <div class="container" id="mainContainer">
+        <!-- 搜索页面 -->
+        <div id="searchPage" class="page active">
+            <div id="search-section" class="search-section centered">
+                <div class="search-container" id="searchContainer">
+                    <div class="unified-search">
+                        <input type="text" id="unifiedSearchInput" placeholder="搜索项目或输入GitHub仓库URL...">
+                        <button id="unifiedSearchButton" class="circular-button">
+                            <span class="emoji-face">U_U</span>
+                        </button>
+                    </div>
+                    <div class="search-tip">
+                        可直接搜索关键词或输入完整URL (例如: https://github.com/username/repo)
+                    </div>
+                </div>
+            </div>
+            
+            <main>
+                <div id="results" class="results-grid"></div>
+            </main>
+        </div>
+
+        <!-- 随机项目页面 -->
+        <div id="randomPage" class="page">
+            <div class="page-header">
+                <h2>发现精彩项目</h2>
+                <p class="page-description">每次都会为您精选30个GitHub上的优质项目，探索更多可能性</p>
+            </div>
+            <div id="randomResults" class="results-grid"></div>
+            <div class="loading-random" id="loadingRandom">
+                <div class="loading-spinner"></div>
+                <p>正在寻找精彩项目...</p>
+            </div>
+        </div>
+
+        <!-- 热门项目页面 -->
+        <div id="trendingPage" class="page" style="z-index: 1;">
+            <div class="page-header">
+                <h2>GitHub热门项目</h2>
+                <p class="page-description">发现不同时间段内最受欢迎的项目</p>
+                <div class="time-filter">
+                    <button class="time-filter-btn active" data-time="3d">3天</button>
+                    <button class="time-filter-btn" data-time="7d">7天</button>
+                    <button class="time-filter-btn" data-time="30d">30天</button>
+                    <button class="time-filter-btn" data-time="90d">90天</button>
+                    <button class="time-filter-btn" data-time="1y">1年</button>
+                    <button class="time-filter-btn" data-time="all">历来</button>
+                </div>
+                <div class="language-filter">
+                    <div class="language-filter-label" data-i18n="language_filter">编程语言:</div>
+                    <div class="language-filter-options">
+                        <button class="language-filter-btn active" data-lang="all" data-i18n="lang_all">全部</button>
+                        <button class="language-filter-btn" data-lang="javascript" data-i18n="lang_javascript">JavaScript</button>
+                        <button class="language-filter-btn" data-lang="python" data-i18n="lang_python">Python</button>
+                        <button class="language-filter-btn" data-lang="java" data-i18n="lang_java">Java</button>
+                        <button class="language-filter-btn" data-lang="go" data-i18n="lang_go">Go</button>
+                        <button class="language-filter-btn" data-lang="typescript" data-i18n="lang_typescript">TypeScript</button>
+                        <button class="language-filter-btn" data-lang="c++" data-i18n="lang_cpp">C++</button>
+                        <button class="language-filter-btn" data-lang="rust" data-i18n="lang_rust">Rust</button>
+                        <button class="language-filter-btn" data-lang="php" data-i18n="lang_php">PHP</button>
+                        <button class="language-filter-btn" data-lang="csharp" data-i18n="lang_csharp">C#</button>
+                        <button class="language-filter-btn" data-lang="swift" data-i18n="lang_swift">Swift</button>
+                    </div>
+                </div>
+            </div>
+            <div id="trendingResults" class="results-grid" style="min-height: 300px;"></div>
+            <div class="loading-trending" id="loadingTrending">
+                <div class="loading-spinner"></div>
+                <p>正在获取热门项目...</p>
+            </div>
+            <div class="load-more-container">
+                <button id="loadMoreTrending" class="load-more-btn">加载更多</button>
+            </div>
+        </div>
+
+        <div id="modal" class="modal">
+            <div class="modal-content">
+                <span class="close">&times;</span>
+                <div id="modalContent"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 底部导航栏 -->
+    <div class="bottom-nav">
+        <button class="nav-button" id="searchNavButton">
+            <div class="nav-icon">
+                <svg viewBox="0 0 24 24" width="24" height="24">
+                    <path fill="currentColor" d="M9.5,3A6.5,6.5 0 0,1 16,9.5C16,11.11 15.41,12.59 14.44,13.73L14.71,14H15.5L20.5,19L19,20.5L14,15.5V14.71L13.73,14.44C12.59,15.41 11.11,16 9.5,16A6.5,6.5 0 0,1 3,9.5A6.5,6.5 0 0,1 9.5,3M9.5,5C7,5 5,7 5,9.5C5,12 7,14 9.5,14C12,14 14,12 14,9.5C14,7 12,5 9.5,5Z" />
+                </svg>
+            </div>
+            <span class="nav-text">主页搜索</span>
+        </button>
+        <button class="nav-button" id="randomNavButton">
+            <div class="nav-icon">
+                <svg viewBox="0 0 24 24" width="24" height="24">
+                    <path fill="currentColor" d="M12,10.9C11.39,10.9 10.9,11.39 10.9,12C10.9,12.61 11.39,13.1 12,13.1C12.61,13.1 13.1,12.61 13.1,12C13.1,11.39 12.61,10.9 12,10.9M12,2C6.48,2 2,6.48 2,12C2,17.52 6.48,22 12,22C17.52,22 22,17.52 22,12C22,6.48 17.52,2 12,2M14.19,14.19L6,18L9.81,9.81L18,6L14.19,14.19Z" />
+                </svg>
+            </div>
+            <span class="nav-text">发现项目</span>
+        </button>
+        <button class="nav-button" id="trendingNavButton">
+            <div class="nav-icon">
+                <svg viewBox="0 0 24 24" width="24" height="24">
+                    <path fill="currentColor" d="M16,6L18.29,8.29L13.41,13.17L9.41,9.17L2,16.59L3.41,18L9.41,12L13.41,16L19.71,9.71L22,12V6H16Z" />
+                </svg>
+            </div>
+            <span class="nav-text">热门项目</span>
+        </button>
+    </div>
+
+    <!-- 设置按钮 -->
+    <button class="settings-button" id="settingsButton">
+        <svg viewBox="0 0 24 24" width="24" height="24">
+            <path fill="currentColor" d="M12,15.5A3.5,3.5 0 0,1 8.5,12A3.5,3.5 0 0,1 12,8.5A3.5,3.5 0 0,1 15.5,12A3.5,3.5 0 0,1 12,15.5M19.43,12.97C19.47,12.65 19.5,12.33 19.5,12C19.5,11.67 19.47,11.34 19.43,11L21.54,9.37C21.73,9.22 21.78,8.95 21.66,8.73L19.66,5.27C19.54,5.05 19.27,4.96 19.05,5.05L16.56,6.05C16.04,5.66 15.5,5.32 14.87,5.07L14.5,2.42C14.46,2.18 14.25,2 14,2H10C9.75,2 9.54,2.18 9.5,2.42L9.13,5.07C8.5,5.32 7.96,5.66 7.44,6.05L4.95,5.05C4.73,4.96 4.46,5.05 4.34,5.27L2.34,8.73C2.21,8.95 2.27,9.22 2.46,9.37L4.57,11C4.53,11.34 4.5,11.67 4.5,12C4.5,12.33 4.53,12.65 4.57,12.97L2.46,14.63C2.27,14.78 2.21,15.05 2.34,15.27L4.34,18.73C4.46,18.95 4.73,19.03 4.95,18.95L7.44,17.94C7.96,18.34 8.5,18.68 9.13,18.93L9.5,21.58C9.54,21.82 9.75,22 10,22H14C14.25,22 14.46,21.82 14.5,21.58L14.87,18.93C15.5,18.67 16.04,18.34 16.56,17.94L19.05,18.95C19.27,19.03 19.54,18.95 19.66,18.73L21.66,15.27C21.78,15.05 21.73,14.78 21.54,14.63L19.43,12.97Z" />
+        </svg>
+    </button>
+
+    <!-- 下载按钮 -->
+    <button class="download-button" id="downloadButton">
+        <svg viewBox="0 0 24 24" width="24" height="24">
+            <path fill="currentColor" d="M5,20H19V18H5M19,9H15V3H9V9H5L12,16L19,9Z" />
+        </svg>
+        <span class="download-count" id="downloadCount">0</span>
+    </button>
+
+    <!-- 下载管理器 -->
+    <div class="download-manager" id="downloadManager">
+        <div class="download-header">
+            <h2>下载管理器</h2>
+            <button class="close-downloads" id="closeDownloads">&times;</button>
+        </div>
+        <div class="download-content">
+            <div class="download-list" id="downloadList">
+                <!-- 下载项将通过JavaScript动态添加 -->
+            </div>
+            <div class="download-empty" id="downloadEmpty">
+                <p>暂无下载任务</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- 设置面板 -->
+    <div class="settings-panel" id="settingsPanel">
+        <div class="settings-header">
+            <h2>设置</h2>
+            <button class="close-settings" id="closeSettings">&times;</button>
+        </div>
+        <div class="settings-content">
+            <div class="settings-group">
+                <h3>语言设置</h3>
+                <div class="language-selector">
+                    <div class="language-current" id="languageDropdown">
+                        <span class="current-language-text">简体中文</span>
+                        <span class="dropdown-arrow">▼</span>
+                    </div>
+                    <div class="language-options" style="display: none;">
+                        <div class="language-option" data-value="zh_CN">
+                            <span>简体中文</span>
+                        </div>
+                        <div class="language-option" data-value="zh_TW">
+                            <span>繁體中文</span>
+                        </div>
+                        <div class="language-option" data-value="en_US">
+                            <span>美式英语 (US English)</span>
+                        </div>
+                        <div class="language-option" data-value="en_GB">
+                            <span>英式英语 (UK English)</span>
+                        </div>
+                        <div class="language-option" data-value="ar_SA">
+                            <span>اللغة العربية (Arabic)</span>
+                        </div>
+                        <div class="language-option" data-value="fr_FR">
+                            <span>Français (French)</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="settings-group">
+                <h3>主题设置</h3>
+                <div class="theme-options">
+                    <label>
+                        <input type="radio" name="theme" value="light" checked>
+                        浅色主题
+                    </label>
+                    <label>
+                        <input type="radio" name="theme" value="dark">
+                        深色主题
+                    </label>
+                </div>
+            </div>
+            <div class="settings-group">
+                <h3>卡片显示方式</h3>
+                <div class="card-display-options">
+                    <label>
+                        <input type="radio" name="card-display" value="grid" checked>
+                        网格视图
+                    </label>
+                    <label>
+                        <input type="radio" name="card-display" value="list">
+                        列表视图
+                    </label>
+                </div>
+                <div class="display-options">
+                    <label>
+                        <input type="checkbox" id="hideBadges" checked>
+                        隐藏不可用徽章
+                    </label>
+                </div>
+            </div>
+            <div class="settings-group">
+                <h3>GitHub Token</h3>
+                <div class="token-input">
+                    <input type="text" id="tokenInput" placeholder="输入您的GitHub Token">
+                    <button id="saveToken">保存</button>
+                </div>
+                <p class="token-tip">添加个人Token可以提高API访问限制，获取更多数据</p>
+                <div class="token-limit-info">
+                    <p class="token-limit-tip">
+                        <strong>访问限制说明：</strong><br>
+                        使用默认配置每天最多访问300个项目<br>
+                        设置您自己的GitHub Token可提高访问限制
+                    </p>
+                    <p class="token-help">
+                        <a href="#" id="tokenHelpLink">如何获取个人Token? →</a>
+                    </p>
+                </div>
+            </div>
+            <div class="settings-group">
+                <h3>下载设置</h3>
+                <div class="download-path-input">
+                    <input type="text" id="downloadPathInput" placeholder="下载路径" readonly>
+                    <button id="selectDownloadPath">选择路径</button>
+                </div>
+                <p class="download-path-tip">设置默认下载路径，文件将保存到此目录</p>
+            </div>
+            
+            <div class="settings-group">
+                <h3>自定义背景</h3>
+                <div class="background-options">
+                    <label>
+                        <input type="radio" name="background-type" value="none" checked>
+                        无背景
+                    </label>
+                    <label>
+                        <input type="radio" name="background-type" value="color">
+                        纯色背景
+                    </label>
+                    <label>
+                        <input type="radio" name="background-type" value="local">
+                        本地图片
+                    </label>
+                    <label>
+                        <input type="radio" name="background-type" value="url">
+                        网络图片
+                    </label>
+                </div>
+                
+                <div class="background-color-input" style="display: none; margin-top: 10px;">
+                    <input type="color" id="backgroundColorInput" value="#f5f5f5">
+                    <span class="color-value">#f5f5f5</span>
+                </div>
+                
+                <div class="background-local-input" style="display: none; margin-top: 10px;">
+                    <button id="selectBackgroundImage">选择本地图片</button>
+                    <div class="selected-image-preview" style="display: none; margin-top: 10px;">
+                        <img id="localImagePreview" src="" style="max-width: 100%; max-height: 150px; border-radius: 4px;">
+                    </div>
+                </div>
+                
+                <div class="background-url-input" style="display: none; margin-top: 10px;">
+                    <input type="text" id="backgroundUrlInput" placeholder="输入图片URL">
+                    <button id="applyBackgroundUrl">应用</button>
+                    <div class="url-image-preview" style="display: none; margin-top: 10px;">
+                        <img id="urlImagePreview" src="" style="max-width: 100%; max-height: 150px; border-radius: 4px;">
+                    </div>
+                </div>
+                
+                <div class="background-settings" style="margin-top: 10px;">
+                    <h4>背景设置</h4>
+                    <div class="background-opacity">
+                        <label for="backgroundOpacity">透明度：</label>
+                        <input type="range" id="backgroundOpacity" min="0" max="100" value="30" style="width: 200px;">
+                        <span id="opacityValue">30%</span>
+                    </div>
+                    <div class="background-blur" style="margin-top: 5px;">
+                        <label for="backgroundBlur">模糊度：</label>
+                        <input type="range" id="backgroundBlur" min="0" max="20" value="5" style="width: 200px;">
+                        <span id="blurValue">5px</span>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- 赞助链接 -->
+            <div class="sponsor-link">
+                <a href="#" id="sponsorLink">
+                    <img src="assets/14.png" alt="赞助支持" title="赞助支持">
+                </a>
+                <!-- 悬停提示框 -->
+                <div class="sponsor-tooltip" id="sponsorTooltip">
+                    <div class="tooltip-header">赞助者特权</div>
+                    <div class="tooltip-plans">
+                        <div class="tooltip-plan">
+                            <div class="plan-title">方案一</div>
+                            <ul class="plan-features">
+                                <li>提前看到新作品</li>
+                                <li>加入专属社区</li>
+                                <li>解锁幕后内容</li>
+                            </ul>
+                        </div>
+                        <div class="tooltip-plan">
+                            <div class="plan-title">方案二</div>
+                            <ul class="plan-features">
+                                <li>包含方案一全部特权</li>
+                                <li>创作过程分享、教学</li>
+                            </ul>
+                        </div>
+                        <div class="tooltip-plan">
+                            <div class="plan-title">方案三</div>
+                            <ul class="plan-features">
+                                <li>可以交流想法，也可以定制</li>
+                                <li>加入新的专属社区</li>
+                                <li>作者不断学习中的新内容</li>
+                            </ul>
+                        </div>
+                    </div>
+                    <div class="tooltip-footer">点击图片加入赞助</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 繁体中文提示框 -->
+    <div class="tw-message-overlay" id="twMessageOverlay">
+        <div class="tw-message-box">
+            <div class="tw-message-content">去学简体🫵</div>
+            <button class="tw-message-close" id="twMessageClose">确定</button>
+        </div>
+    </div>
+
+    <script src="renderer.js"></script>
+</body>
+</html> 
