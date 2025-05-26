@@ -23,7 +23,7 @@ window.api = {
 };
 
 // 默认token（隐藏显示）
-const DEFAULT_TOKEN = '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';
+const DEFAULT_TOKEN = '{{YOUR_GITHUB_TOKEN}}'; // 替换为占位符
 
 // 初始化存储
 const store = new Store({
@@ -434,6 +434,8 @@ function checkVisitLimits() {
 
 // 获取存储的GitHub Token
 let GITHUB_TOKEN = store.get('github_token');
+// 备用经典token
+const BACKUP_TOKEN = '{{YOUR_BACKUP_TOKEN}}'; // 替换为占位符
 
 // DOM元素
 const searchInput = document.getElementById('unifiedSearchInput');
