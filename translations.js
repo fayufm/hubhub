@@ -3,9 +3,9 @@ const translations = {
     // 简体中文
     zh_CN: {
         // 导航和页面标题
-        search: "搜索",
-        random: "发现精彩项目",
-        trending: "GitHub热门项目",
+        search: "搜索项目",
+        random: "精彩项目",
+        trending: "热门项目",
         random_description: "每次都会为您精选30个GitHub上的优质项目，探索更多可能性",
         trending_description: "发现不同时间段内最受欢迎的项目",
         
@@ -106,9 +106,9 @@ const translations = {
     // 美式英语
     en_US: {
         // Navigation and page titles
-        search: "Search",
-        random: "Discover Projects",
-        trending: "GitHub Trending",
+        search: "Search Projects",
+        random: "Awesome Projects",
+        trending: "Trending Projects",
         random_description: "Discover 30 high-quality GitHub projects every time you visit",
         trending_description: "Find the most popular projects in different time periods",
         

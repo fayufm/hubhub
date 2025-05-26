@@ -1734,49 +1734,54 @@ body.dark-theme .loading-spinner {
     left: 50%;
     transform: translateX(-50%);
     display: flex;
-    gap: 15px;
-    background-color: #ffffff;
-    border-radius: 30px;
-    padding: 8px 15px;
-    box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+    gap: 20px;
     z-index: 998;
     transition: all 0.3s ease;
+    background: transparent;
+    box-shadow: none;
+    padding: 0;
 }
 
 .nav-button {
     display: flex;
-    flex-direction: column;
     align-items: center;
-    background: none;
+    justify-content: center;
+    background-color: #ffffff;
     border: none;
-    padding: 8px 16px;
+    padding: 8px 20px;
     cursor: pointer;
-    border-radius: 12px;
+    border-radius: 50px;
     transition: all 0.3s ease;
     color: #555;
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+    min-width: 120px;
 }
 
 .nav-button:hover {
-    background-color: rgba(0, 0, 0, 0.05);
+    background-color: #f5f5f5;
     transform: translateY(-3px);
+    box-shadow: 0 6px 12px rgba(0, 0, 0, 0.15);
 }
 
 .nav-button.active {
-    color: #2ea44f;
-    background-color: rgba(46, 164, 79, 0.1);
+    color: #fff;
+    background-color: #2ea44f;
+    box-shadow: 0 4px 10px rgba(46, 164, 79, 0.3);
 }
 
 .nav-button:nth-child(3).active {
-    color: #0366d6;
-    background-color: rgba(3, 102, 214, 0.1);
+    color: #fff;
+    background-color: #0366d6;
+    box-shadow: 0 4px 10px rgba(3, 102, 214, 0.3);
 }
 
 .nav-icon {
-    margin-bottom: 5px;
+    margin-right: 8px;
+    margin-bottom: 0;
 }
 
 .nav-text {
-    font-size: 12px;
+    font-size: 14px;
     font-weight: 500;
 }
 
@@ -1794,38 +1799,69 @@ body.dark-theme .loading-spinner {
 
 /* 深色主题适配 */
 body.dark-theme .bottom-nav {
-    background-color: #2d2d2d;
-    box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
+    background: transparent;
+    box-shadow: none;
 }
 
 body.dark-theme .nav-button {
+    background-color: #2d2d2d;
     color: #b1b1b1;
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.3);
 }
 
 body.dark-theme .nav-button:hover {
-    background-color: rgba(255, 255, 255, 0.05);
+    background-color: #3a3a3a;
+    box-shadow: 0 6px 12px rgba(0, 0, 0, 0.4);
 }
 
 body.dark-theme .nav-button.active {
-    background-color: rgba(46, 164, 79, 0.2);
+    background-color: #2ea44f;
+    color: #ffffff;
+    box-shadow: 0 4px 10px rgba(46, 164, 79, 0.3);
 }
 
 body.dark-theme .nav-button:nth-child(3).active {
-    background-color: rgba(3, 102, 214, 0.2);
+    background-color: #0366d6;
+    color: #ffffff;
+    box-shadow: 0 4px 10px rgba(3, 102, 214, 0.3);
 }
 
 /* 媒体查询 - 移动设备适配 */
 @media (max-width: 768px) {
     .bottom-nav {
-        padding: 5px 10px;
+        padding: 0;
+        gap: 10px;
+        width: 90%;
     }
     
     .nav-button {
-        padding: 8px 12px;
+        padding: 6px 12px;
+        min-width: 100px;
     }
     
     .nav-text {
-        font-size: 10px;
+        font-size: 12px;
+    }
+    
+    .nav-icon {
+        margin-right: 5px;
+    }
+    
+    .nav-icon svg {
+        width: 20px;
+        height: 20px;
+    }
+}
+
+@media (max-width: 480px) {
+    .bottom-nav {
+        width: 95%;
+        gap: 8px;
+    }
+    
+    .nav-button {
+        min-width: 0;
+        padding: 6px 10px;
     }
 }
 
