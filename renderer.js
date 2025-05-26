@@ -143,6 +143,10 @@ const downloadManager = {
                 statusText = `${downloadedSize} / ${totalSize} - ${speed}`;
                 actions = `<button class="download-action-button" data-action="cancel" data-id="${download.id}">取消</button>`;
                 break;
+            case 'cancelling':
+                statusText = `正在取消...`;
+                actions = `<button class="download-action-button disabled" disabled>取消中...</button>`;
+                break;
             case 'completed':
                 statusText = `已完成 - ${totalSize}`;
                 actions = `
@@ -291,14 +295,27 @@ const downloadManager = {
     cancelDownload(id) {
         const download = this.downloads.get(id);
         if (download && download.status === 'downloading') {
+            // 立即更新UI状态，使按钮立即变为"已取消"状态
+            download.status = 'cancelling';
+            this.updateDownloadList();
+            
             // 通知主进程取消下载
             ipcRenderer.send('cancel-download', { id });
             
-            download.status = 'cancelled';
+            // 降低活跃下载计数
             this.activeDownloads--;
-            
             this.updateDownloadButton();
-            this.updateDownloadList();
+            
+            // 延迟再次更新状态，确保用户体验平滑
+            setTimeout(() => {
+                if (this.downloads.has(id)) {
+                    const updatedDownload = this.downloads.get(id);
+                    if (updatedDownload.status === 'cancelling') {
+                        updatedDownload.status = 'cancelled';
+                        this.updateDownloadList();
+                    }
+                }
+            }, 500);
         }
     },
     

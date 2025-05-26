@@ -137,7 +137,9 @@ ipcMain.on('start-download', (event, { url, filename, downloadPath, id }) => {
     size: 0,
     downloaded: 0,
     speed: 0,
-    startTime: Date.now()
+    startTime: Date.now(),
+    request: null, // 存储请求实例，以便后续取消
+    fileStream: file // 保存文件流实例
   });
   
   // 发送请求
@@ -159,6 +161,13 @@ ipcMain.on('start-download', (event, { url, filename, downloadPath, id }) => {
       
       const redirectUrl = response.headers.location;
       console.log(`下载重定向: ${url} -> ${redirectUrl}`);
+      
+      // 从下载映射中获取并更新信息
+      const downloadInfo = downloads.get(id);
+      if (downloadInfo) {
+        downloadInfo.fileStream = null;
+        downloadInfo.request = null;
+      }
       
       // 通知渲染进程处理重定向
       event.sender.send('download-redirect', { id, url: redirectUrl });
@@ -221,9 +230,13 @@ ipcMain.on('start-download', (event, { url, filename, downloadPath, id }) => {
       
       // 更新下载状态
       const finalInfo = downloads.get(id);
-      finalInfo.status = 'completed';
-      finalInfo.progress = 100;
-      downloads.set(id, finalInfo);
+      if (finalInfo) {
+        finalInfo.status = 'completed';
+        finalInfo.progress = 100;
+        finalInfo.request = null; // 清除请求对象
+        finalInfo.fileStream = null; // 清除文件流
+        downloads.set(id, finalInfo);
+      }
       
       // 通知渲染进程下载完成
       event.sender.send('download-complete', {
@@ -233,6 +246,11 @@ ipcMain.on('start-download', (event, { url, filename, downloadPath, id }) => {
     });
   });
   
+  // 保存请求实例
+  const downloadInfo = downloads.get(id);
+  downloadInfo.request = request;
+  downloads.set(id, downloadInfo);
+  
   request.on('error', (error) => {
     file.end();
     
@@ -240,6 +258,8 @@ ipcMain.on('start-download', (event, { url, filename, downloadPath, id }) => {
     if (downloads.has(id)) {
       const errorInfo = downloads.get(id);
       errorInfo.status = 'error';
+      errorInfo.request = null; // 清除请求对象
+      errorInfo.fileStream = null; // 清除文件流
       downloads.set(id, errorInfo);
     }
     
@@ -259,12 +279,26 @@ ipcMain.on('cancel-download', (event, { id }) => {
     // 如果文件正在写入，尝试关闭它
     if (downloadInfo.status === 'downloading') {
       try {
+        // 终止网络请求
+        if (downloadInfo.request && typeof downloadInfo.request.abort === 'function') {
+          console.log(`正在终止下载请求: ${id}`);
+          downloadInfo.request.abort();
+        } else if (downloadInfo.request && typeof downloadInfo.request.destroy === 'function') {
+          console.log(`正在终止下载请求: ${id}`);
+          downloadInfo.request.destroy();
+        }
+      
+        // 关闭文件流
+        if (downloadInfo.fileStream && typeof downloadInfo.fileStream.end === 'function') {
+          downloadInfo.fileStream.end();
+        }
+      
         // 删除未完成的文件
         if (fs.existsSync(downloadInfo.filePath)) {
           fs.unlinkSync(downloadInfo.filePath);
         }
       } catch (err) {
-        console.error('删除未完成的文件失败:', err);
+        console.error('取消下载时出错:', err);
       }
     }
     
