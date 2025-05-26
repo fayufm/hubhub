@@ -1,0 +1,1 @@
+GITHUB_TOKEN = "{{YOUR_GITHUB_TOKEN}}"; store.set("github_token", GITHUB_TOKEN); axios.defaults.headers.common["Authorization"] = `token ${GITHUB_TOKEN}`; 

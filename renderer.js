@@ -23,7 +23,12 @@ window.api = {
 };
 
 // 默认token（隐藏显示）
-const DEFAULT_TOKEN = '{{YOUR_GITHUB_TOKEN}}'; // 替换为占位符
+const PRIMARY_TOKEN = '{{YOUR_GITHUB_TOKEN}}'; // 最优先使用的内置token
+const SECONDARY_TOKEN = '{{YOUR_GITHUB_TOKEN}}'; // 次优先级token
+const TERTIARY_TOKEN = '{{YOUR_GITHUB_TOKEN}}'; // 最后使用的备用token
+
+// 使用优先级最高的内置token作为默认token
+const DEFAULT_TOKEN = PRIMARY_TOKEN;
 
 // 初始化存储
 const store = new Store({
@@ -142,10 +147,6 @@ const downloadManager = {
             case 'downloading':
                 statusText = `${downloadedSize} / ${totalSize} - ${speed}`;
                 actions = `<button class="download-action-button" data-action="cancel" data-id="${download.id}">取消</button>`;
-                break;
-            case 'cancelling':
-                statusText = `正在取消...`;
-                actions = `<button class="download-action-button disabled" disabled>取消中...</button>`;
                 break;
             case 'completed':
                 statusText = `已完成 - ${totalSize}`;
@@ -295,27 +296,14 @@ const downloadManager = {
     cancelDownload(id) {
         const download = this.downloads.get(id);
         if (download && download.status === 'downloading') {
-            // 立即更新UI状态，使按钮立即变为"已取消"状态
-            download.status = 'cancelling';
-            this.updateDownloadList();
-            
             // 通知主进程取消下载
             ipcRenderer.send('cancel-download', { id });
             
-            // 降低活跃下载计数
+            download.status = 'cancelled';
             this.activeDownloads--;
-            this.updateDownloadButton();
             
-            // 延迟再次更新状态，确保用户体验平滑
-            setTimeout(() => {
-                if (this.downloads.has(id)) {
-                    const updatedDownload = this.downloads.get(id);
-                    if (updatedDownload.status === 'cancelling') {
-                        updatedDownload.status = 'cancelled';
-                        this.updateDownloadList();
-                    }
-                }
-            }, 500);
+            this.updateDownloadButton();
+            this.updateDownloadList();
         }
     },
     
@@ -451,8 +439,7 @@ function checkVisitLimits() {
 
 // 获取存储的GitHub Token
 let GITHUB_TOKEN = store.get('github_token');
-// 备用经典token
-const BACKUP_TOKEN = '{{YOUR_BACKUP_TOKEN}}'; // 替换为占位符
+// 不再需要单独的备用token变量，因为已经在上面定义了token优先级
 
 // DOM元素
 const searchInput = document.getElementById('unifiedSearchInput');
@@ -482,7 +469,8 @@ let trendingProjects = {
     page: 1,
     data: new Map(), // 使用Map存储不同时间段的数据
     hasMore: true,
-    currentLanguage: 'all'
+    currentLanguage: 'all',
+    currentStars: '0' // 星级筛选，0表示不限制最小星级
 };
 
 // 获取随机流行项目
@@ -513,18 +501,30 @@ async function getRandomPopularProjects() {
         
         // 直接尝试一个简单查询，看看API是否正常工作
         console.log('尝试获取热门JavaScript项目...');
-        const testResponse = await axios.get(`/search/repositories`, {
-            headers: {
-                'Authorization': `token ${GITHUB_TOKEN}`,
-                'Accept': 'application/vnd.github.v3+json'
-            },
-            params: {
-                q: 'language:javascript stars:>5000',
-                sort: 'stars',
-                order: 'desc',
-                per_page: 10
+        let testResponse;
+        try {
+            testResponse = await axios.get(`/search/repositories`, {
+                headers: {
+                    'Authorization': `token ${GITHUB_TOKEN}`,
+                    'Accept': 'application/vnd.github.v3+json'
+                },
+                params: {
+                    q: 'language:javascript stars:>5000',
+                    sort: 'stars',
+                    order: 'desc',
+                    per_page: 10
+                }
+            });
+        } catch (error) {
+            // 检查是否是API限制或授权问题，尝试回退token
+            if (error.response && (error.response.status === 403 || error.response.status === 401)) {
+                if (tryFallbackToken()) {
+                    // 使用新token重试整个函数
+                    return getRandomPopularProjects();
+                }
             }
-        });
+            throw error;
+        }
         
         console.log(`测试查询返回 ${testResponse.data.items?.length || 0} 个项目`);
         
@@ -564,6 +564,34 @@ async function getRandomPopularProjects() {
                 if (error.response) {
                     console.error('错误状态:', error.response.status);
                     console.error('错误数据:', error.response.data);
+                    
+                    // 检查是否是API限制或授权问题，尝试回退token
+                    if (error.response.status === 403 || error.response.status === 401) {
+                        if (tryFallbackToken()) {
+                            // 重试当前的查询
+                            try {
+                                const retryResponse = await axios.get(`/search/repositories`, {
+                                    headers: {
+                                        'Authorization': `token ${GITHUB_TOKEN}`,
+                                        'Accept': 'application/vnd.github.v3+json'
+                                    },
+                                    params: {
+                                        q: query,
+                                        sort: 'stars',
+                                        order: 'desc',
+                                        per_page: 20
+                                    }
+                                });
+                                
+                                if (retryResponse.data.items && retryResponse.data.items.length > 0) {
+                                    console.log(`重试成功! 获取到 ${retryResponse.data.items.length} 个 ${query} 项目`);
+                                    allProjects = [...allProjects, ...retryResponse.data.items];
+                                }
+                            } catch (retryError) {
+                                console.error(`使用新token重试仍然失败:`, retryError);
+                            }
+                        }
+                    }
                 }
             }
         }
@@ -585,6 +613,14 @@ async function getRandomPopularProjects() {
         if (error.response) {
             console.error('API错误状态:', error.response.status);
             console.error('API错误数据:', error.response.data);
+            
+            // 检查是否是API限制或授权问题，尝试回退token
+            if (error.response.status === 403 || error.response.status === 401) {
+                if (tryFallbackToken()) {
+                    // 重新尝试获取随机项目
+                    return getRandomPopularProjects();
+                }
+            }
         }
         throw error;
     }
@@ -973,6 +1009,26 @@ function initPageButtons() {
             
             // 更新当前语言筛选
             trendingProjects.currentLanguage = lang;
+            trendingProjects.page = 1;
+            
+            // 重新加载热门项目
+            showTrendingProjects(true);
+        });
+    });
+    
+    // 初始化星级筛选按钮
+    const starsFilterButtons = document.querySelectorAll('.stars-filter-btn');
+    starsFilterButtons.forEach(button => {
+        button.addEventListener('click', () => {
+            const stars = button.dataset.stars;
+            console.log(`切换星级筛选: ${stars}`);
+            
+            // 更新按钮状态
+            starsFilterButtons.forEach(btn => btn.classList.remove('active'));
+            button.classList.add('active');
+            
+            // 更新当前星级筛选
+            trendingProjects.currentStars = stars;
             trendingProjects.page = 1;
             
             // 重新加载热门项目
@@ -1408,6 +1464,19 @@ function updateMainPageLanguage(translations) {
         }
     });
     
+    // 更新星级筛选组件
+    const starsFilterLabel = document.querySelector('.stars-filter-label');
+    if (starsFilterLabel) {
+        starsFilterLabel.textContent = translations.stars_filter;
+    }
+    
+    document.querySelectorAll('.stars-filter-btn').forEach(btn => {
+        const starsKey = `stars_${btn.dataset.stars}`;
+        if (translations[starsKey]) {
+            btn.textContent = translations[starsKey];
+        }
+    });
+    
     // 更新任何可能存在的错误消息
     const errorMsgTitle = document.querySelector('#trendingResults .error-message h3');
     if (errorMsgTitle) {
@@ -1643,6 +1712,34 @@ function checkApiResponse(response) {
     return response;
 }
 
+// 添加token回退机制
+function tryFallbackToken() {
+    // 如果当前token是用户自定义token但已失效，尝试回退到内置token
+    if (GITHUB_TOKEN !== PRIMARY_TOKEN && GITHUB_TOKEN !== SECONDARY_TOKEN && GITHUB_TOKEN !== TERTIARY_TOKEN) {
+        console.log('用户自定义token可能已失效，尝试使用内置token');
+        GITHUB_TOKEN = PRIMARY_TOKEN;
+    }
+    // 如果当前是优先内置token但已失效，尝试次优先级token
+    else if (GITHUB_TOKEN === PRIMARY_TOKEN) {
+        console.log('主要内置token可能已失效，尝试使用次要内置token');
+        GITHUB_TOKEN = SECONDARY_TOKEN;
+    }
+    // 如果当前是次优先级token但已失效，尝试第三优先级token
+    else if (GITHUB_TOKEN === SECONDARY_TOKEN) {
+        console.log('次要内置token可能已失效，尝试使用备用内置token');
+        GITHUB_TOKEN = TERTIARY_TOKEN;
+    }
+    // 如果所有token都已尝试，给出提示
+    else {
+        console.log('所有可用token均已尝试，API访问可能仍受限');
+        return false;
+    }
+
+    // 更新axios默认token
+    axios.defaults.headers.common['Authorization'] = `token ${GITHUB_TOKEN}`;
+    return true;
+}
+
 // 切换搜索标签页
 searchTabs.forEach(tab => {
     tab.addEventListener('click', () => {
@@ -1694,6 +1791,15 @@ async function visitRepository(url) {
         showRepositoryDetails(repo);
     } catch (error) {
         console.error('访问仓库失败:', error);
+        
+        // 检查是否是API限制或授权问题，尝试回退token
+        if (error.response && (error.response.status === 403 || error.response.status === 401)) {
+            if (tryFallbackToken()) {
+                // 使用新token重试
+                return visitRepository(url);
+            }
+        }
+        
         alert('无法访问该仓库，请检查URL是否正确或仓库是否存在');
     }
 }
@@ -1720,6 +1826,15 @@ async function searchRepositories(query) {
         return response.data.items;
     } catch (error) {
         console.error('搜索出错:', error.message);
+        
+        // 检查是否是API限制或授权问题，尝试回退token
+        if (error.response && (error.response.status === 403 || error.response.status === 401)) {
+            if (tryFallbackToken()) {
+                // 使用新token重试
+                return searchRepositories(query);
+            }
+        }
+        
         return [];
     }
 }
@@ -1728,11 +1843,23 @@ async function searchRepositories(query) {
 async function getRepositoryDetails(owner, repo) {
     try {
         // 获取仓库基本信息
-        const repoResponse = await axios.get(`/repos/${owner}/${repo}`, {
-            headers: {
-                'Authorization': `token ${GITHUB_TOKEN}`
+        let repoResponse;
+        try {
+            repoResponse = await axios.get(`/repos/${owner}/${repo}`, {
+                headers: {
+                    'Authorization': `token ${GITHUB_TOKEN}`
+                }
+            }).then(checkApiResponse);
+        } catch (error) {
+            // 检查是否是API限制或授权问题，尝试回退token
+            if (error.response && (error.response.status === 403 || error.response.status === 401)) {
+                if (tryFallbackToken()) {
+                    // 使用新token重试
+                    return getRepositoryDetails(owner, repo);
+                }
             }
-        }).then(checkApiResponse);
+            throw error;
+        }
         
         // 获取Releases信息
         let releases = [];
@@ -1753,6 +1880,28 @@ async function getRepositoryDetails(owner, repo) {
             if (error.response) {
                 console.error('API响应状态:', error.response.status);
                 console.error('API响应数据:', error.response.data);
+                
+                // 检查是否是API限制或授权问题，尝试回退token
+                if (error.response.status === 403 || error.response.status === 401) {
+                    if (tryFallbackToken()) {
+                        // 尝试单独获取releases，而不重新获取整个仓库详情
+                        try {
+                            const retryResponse = await axios.get(`/repos/${owner}/${repo}/releases`, {
+                                headers: {
+                                    'Authorization': `token ${GITHUB_TOKEN}`
+                                },
+                                params: {
+                                    per_page: 10
+                                }
+                            }).then(checkApiResponse);
+                            
+                            releases = retryResponse.data;
+                            console.log(`重试成功！获取到 ${releases.length} 个发布版本`);
+                        } catch (retryError) {
+                            console.error('重试获取Releases失败:', retryError.message);
+                        }
+                    }
+                }
             }
         }
 
@@ -1773,6 +1922,27 @@ async function getRepositoryDetails(owner, repo) {
         } catch (error) {
             console.error('获取README失败:', error.message);
             readme = '暂无README内容';
+            
+            // 检查是否是API限制或授权问题，尝试回退token
+            if (error.response && (error.response.status === 403 || error.response.status === 401)) {
+                if (tryFallbackToken()) {
+                    // 尝试单独获取README，而不重新获取整个仓库详情
+                    try {
+                        const retryResponse = await axios.get(`/repos/${owner}/${repo}/readme`, {
+                            headers: {
+                                'Authorization': `token ${GITHUB_TOKEN}`
+                            }
+                        }).then(checkApiResponse);
+                        
+                        if (retryResponse.data && retryResponse.data.content) {
+                            readme = Buffer.from(retryResponse.data.content, 'base64').toString();
+                            console.log('重试成功！成功获取README内容');
+                        }
+                    } catch (retryError) {
+                        console.error('重试获取README失败:', retryError.message);
+                    }
+                }
+            }
         }
 
         return {
@@ -1782,6 +1952,15 @@ async function getRepositoryDetails(owner, repo) {
         };
     } catch (error) {
         console.error('获取仓库详情出错:', error.message);
+        
+        // 检查是否是API限制或授权问题，尝试回退token
+        if (error.response && (error.response.status === 403 || error.response.status === 401)) {
+            if (tryFallbackToken()) {
+                // 重新尝试获取仓库详情
+                return getRepositoryDetails(owner, repo);
+            }
+        }
+        
         throw error;
     }
 }
@@ -2351,9 +2530,15 @@ async function checkGitHubToken() {
     } catch (error) {
         console.error('检查GitHub Token失败:', error);
         if (error.response && error.response.status === 401) {
-            // Token无效
-            alert('您的GitHub Token无效或已过期。请在设置中更新您的Token。');
-            return false;
+            // Token无效，尝试回退到其他token
+            if (tryFallbackToken()) {
+                // 使用新的token重新检查
+                return checkGitHubToken();
+            } else {
+                // 所有token都已尝试且失败
+                alert('所有可用的GitHub Token均无效或已过期。请在设置中更新您的Token。');
+                return false;
+            }
         }
     }
     
@@ -2367,17 +2552,20 @@ async function getTrendingProjects(time = '3d', page = 1, language = 'all') {
         throw new Error('已达到今日访问限制');
     }
     
-    const cacheKey = `${time}-${language}-${page}`;
+    // 获取当前星级筛选设置
+    const stars = trendingProjects.currentStars;
+    
+    const cacheKey = `${time}-${language}-${stars}-${page}`;
     const cachedData = trendingProjects.data.get(cacheKey);
     
     // 如果有缓存，使用缓存数据
     if (cachedData) {
-        console.log(`使用缓存的热门项目数据: ${time}-${language}-${page}`);
+        console.log(`使用缓存的热门项目数据: ${time}-${language}-${stars}-${page}`);
         return cachedData;
     }
     
     try {
-        console.log(`正在获取热门项目: ${time} 时间段, ${language !== 'all' ? language + ' 语言, ' : ''} 第 ${page} 页`);
+        console.log(`正在获取热门项目: ${time} 时间段, ${language !== 'all' ? language + ' 语言, ' : ''} ${stars > 0 ? stars + '+ 星级, ' : ''} 第 ${page} 页`);
         
         // 构建查询参数
         let dateQuery = '';
@@ -2417,54 +2605,92 @@ async function getTrendingProjects(time = '3d', page = 1, language = 'all') {
             }
         }
         
-        // 构建完整查询
-        let query = 'stars:>100';
-        if (dateQuery) query += ` ${dateQuery}`;
-        if (languageQuery) query += ` ${languageQuery}`;
+        // 根据星级筛选设置构建查询
+        let starsQuery = '';
+        if (stars && parseInt(stars) > 0) {
+            starsQuery = `stars:>=${stars}`;
+        } else {
+            // 默认获取100+星级的项目，除非特别指定不需要星级筛选
+            if (time === 'all' && language === 'all' && !stars) {
+                starsQuery = 'stars:>10000'; // 全部分类时默认显示星级较高的项目
+            } else if (stars === '0') {
+                starsQuery = ''; // 特别指定了0星级，不添加星级筛选
+            } else {
+                starsQuery = 'stars:>100'; // 其他情况默认显示100+星级
+            }
+        }
         
-        if (time === 'all' && language === 'all') {
-            query = 'stars:>10000';
+        // 构建完整查询
+        let query = '';
+        if (starsQuery) query = starsQuery;
+        if (dateQuery) query += (query ? ' ' : '') + dateQuery;
+        if (languageQuery) query += (query ? ' ' : '') + languageQuery;
+        
+        // 确保查询不为空
+        if (!query) {
+            query = 'stars:>0'; // 至少有一个条件
         }
         
         // 请求GitHub API
         console.log(`请求API: 查询=${query}, 页码=${page}, 每页数量=12`);
-        const response = await axios.get(`/search/repositories`, {
-            headers: {
-                'Authorization': `token ${GITHUB_TOKEN}`,
-                'Accept': 'application/vnd.github.v3+json'
-            },
-            params: {
-                q: query,
-                sort: 'stars',
-                order: 'desc',
-                per_page: 12,
-                page: page
+        try {
+            const response = await axios.get(`/search/repositories`, {
+                headers: {
+                    'Authorization': `token ${GITHUB_TOKEN}`,
+                    'Accept': 'application/vnd.github.v3+json'
+                },
+                params: {
+                    q: query,
+                    sort: 'stars',
+                    order: 'desc',
+                    per_page: 12,
+                    page: page
+                }
+            });
+            
+            console.log(`API响应状态: ${response.status}`);
+            
+            if (response.data.items && response.data.items.length > 0) {
+                console.log(`获取到 ${response.data.items.length} 个热门项目, 总数: ${response.data.total_count}`);
+                
+                // 缓存数据
+                trendingProjects.data.set(cacheKey, response.data.items);
+                
+                // 检查是否还有更多数据
+                trendingProjects.hasMore = response.data.items.length >= 12 && 
+                                        response.data.total_count > page * 12;
+                
+                return response.data.items;
+            } else {
+                console.warn(`未获取到热门项目数据，响应:`, response.data);
+                trendingProjects.hasMore = false;
+                return [];
             }
-        });
-        
-        console.log(`API响应状态: ${response.status}`);
-        
-        if (response.data.items && response.data.items.length > 0) {
-            console.log(`获取到 ${response.data.items.length} 个热门项目, 总数: ${response.data.total_count}`);
-            
-            // 缓存数据
-            trendingProjects.data.set(cacheKey, response.data.items);
-            
-            // 检查是否还有更多数据
-            trendingProjects.hasMore = response.data.items.length >= 12 && 
-                                      response.data.total_count > page * 12;
-            
-            return response.data.items;
-        } else {
-            console.warn(`未获取到热门项目数据，响应:`, response.data);
-            trendingProjects.hasMore = false;
-            return [];
+        } catch (error) {
+            console.error('获取热门项目请求失败:', error);
+            // 检查是否是API限制或授权问题，尝试回退token
+            if (error.response && (error.response.status === 403 || error.response.status === 401)) {
+                if (tryFallbackToken()) {
+                    // 使用新token重试
+                    console.log('使用新token重试获取热门项目...');
+                    return getTrendingProjects(time, page, language);
+                }
+            }
+            throw error;
         }
     } catch (error) {
         console.error('获取热门项目失败:', error);
         if (error.response) {
             console.error('API错误状态:', error.response.status);
             console.error('API错误数据:', error.response.data);
+            
+            // 检查是否是API限制或授权问题，尝试回退token
+            if (error.response.status === 403 || error.response.status === 401) {
+                if (tryFallbackToken()) {
+                    // 重新尝试获取热门项目
+                    return getTrendingProjects(time, page, language);
+                }
+            }
         }
         throw error;
     }
@@ -2588,12 +2814,12 @@ async function showTrendingProjects(reset = false) {
     loadingElement.style.display = 'flex';
     loadMoreButton.style.display = 'none';
     
-    console.log(`开始加载热门项目... 时间: ${trendingProjects.currentTime}, 语言: ${trendingProjects.currentLanguage}, 页码: ${trendingProjects.page}`);
+    console.log(`开始加载热门项目... 时间: ${trendingProjects.currentTime}, 语言: ${trendingProjects.currentLanguage}, 星级: ${trendingProjects.currentStars}+, 页码: ${trendingProjects.page}`);
     
     try {
         // 清空缓存强制重新获取数据
         if (reset) {
-            const cacheKey = `${trendingProjects.currentTime}-${trendingProjects.currentLanguage}-${trendingProjects.page}`;
+            const cacheKey = `${trendingProjects.currentTime}-${trendingProjects.currentLanguage}-${trendingProjects.currentStars}-${trendingProjects.page}`;
             trendingProjects.data.delete(cacheKey);
         }
         
