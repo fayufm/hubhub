@@ -144,8 +144,26 @@ ipcMain.on('start-download', (event, { url, filename, downloadPath, id }) => {
   const request = requestModule.get(url, (response) => {
     // 检查是否重定向
     if (response.statusCode === 301 || response.statusCode === 302) {
+      // 关闭文件流防止资源泄漏
+      file.end();
+      
+      // 如果文件已创建但为空，删除它
+      try {
+        const stats = fs.statSync(filePath);
+        if (stats.size === 0) {
+          fs.unlinkSync(filePath);
+        }
+      } catch (err) {
+        console.error('清理空文件失败:', err);
+      }
+      
       const redirectUrl = response.headers.location;
+      console.log(`下载重定向: ${url} -> ${redirectUrl}`);
+      
+      // 通知渲染进程处理重定向
       event.sender.send('download-redirect', { id, url: redirectUrl });
+      
+      // 从下载列表中移除
       downloads.delete(id);
       return;
     }
