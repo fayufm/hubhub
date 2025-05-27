@@ -1,3 +1,9 @@
+# ⚠️ 重要说明
+
+本仓库未包含任何内置 GitHub Token，所有 token 字段已注释。如需完整功能，请在 renderer.js 和 main.js 中自行配置你的 GitHub Token。
+
+获取方式请参考：https://docs.github.com/zh/authentication/keeping-your-account-and-data-secure/creating-a-personal-access-token
+
 # HubHub - GitHub项目搜索工具
 
 HubHub是一款强大的GitHub项目搜索工具，帮助开发者更便捷地发现、浏览和管理GitHub上的优质项目。

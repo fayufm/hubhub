@@ -2486,7 +2486,7 @@ function saveToken(token) {
         GITHUB_TOKEN = token;
         
         // 检测Token类型并设置正确的格式
-        if (token.startsWith('***REMOVED***')) {
+        if (token.startsWith('github_pat_')) {
             TOKEN_FORMAT = 'token';
             console.log('检测到fine-grained token，使用token格式');
         } else if (token.startsWith('***REMOVED***')) {
