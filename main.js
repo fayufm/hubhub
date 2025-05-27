@@ -26,13 +26,13 @@ let mainWindow;
 const downloads = new Map();
 
 // 默认token（隐藏显示）
-// const PRIMARY_TOKEN = '***REMOVED***xxx...'; // ← 示例，实际内容请自行配置
+// const PRIMARY_TOKEN = 'ghp_xxx...'; // ← 示例，实际内容请自行配置
 const PRIMARY_TOKEN = '';
-// const SECONDARY_TOKEN = '***REMOVED***xxx...'; // ← 示例，实际内容请自行配置
+// const SECONDARY_TOKEN = 'ghp_xxx...'; // ← 示例，实际内容请自行配置
 const SECONDARY_TOKEN = '';
-// const TERTIARY_TOKEN = '***REMOVED***xxx...'; // ← 示例，实际内容请自行配置
+// const TERTIARY_TOKEN = 'ghp_xxx...'; // ← 示例，实际内容请自行配置
 const TERTIARY_TOKEN = '';
-// const DEFAULT_TOKEN = '***REMOVED***xxx...'; // ← 示例，实际内容请自行配置
+// const DEFAULT_TOKEN = 'ghp_xxx...'; // ← 示例，实际内容请自行配置
 const DEFAULT_TOKEN = '';
 
 function createWindow() {

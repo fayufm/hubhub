@@ -4,6 +4,8 @@ const store = new Store({
     encryptionKey: 'chengren_secure_encryption_key'
 });
 
+// 该段内容需要用户自行调整GitHub访问令牌
+
 // 备份当前token
 const currentToken = store.get('github_token');
 
