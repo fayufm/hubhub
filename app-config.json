@@ -1,0 +1,6 @@
+{
+  "useDirectAuth": true,
+  "skipTokenCheck": true,
+  "enableLogging": true,
+  "timestamp": "2025-05-27T05:58:35.195Z"
+}

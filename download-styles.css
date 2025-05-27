@@ -1,0 +1,263 @@
+/* 下载管理器增强样式 */
+
+/* 取消中状态样式 */
+.download-item.cancelling {
+    background-color: #ffe9e9;
+    border-left: 3px solid #ff6b6b;
+    opacity: 0.8;
+}
+
+.download-item.cancelling .download-progress-fill {
+    background-color: #ff6b6b;
+    animation: pulse 1.5s infinite;
+}
+
+.cancelling-indicator {
+    color: #ff3333;
+    font-weight: bold;
+    font-size: 0.9em;
+    animation: blink 1s infinite;
+}
+
+/* 动画效果 */
+@keyframes pulse {
+    0% { opacity: 0.6; }
+    50% { opacity: 0.9; }
+    100% { opacity: 0.6; }
+}
+
+@keyframes blink {
+    0% { opacity: 0.7; }
+    50% { opacity: 1; }
+    100% { opacity: 0.7; }
+}
+
+/* 黑暗模式支持 */
+body.dark-theme .download-item.cancelling {
+    background-color: #3a2a2a;
+    border-left: 3px solid #ff6b6b;
+}
+
+body.dark-theme .cancelling-indicator {
+    color: #ff6b6b;
+}
+
+/* 移动设备响应式样式 */
+@media (max-width: 768px) {
+    .download-item.cancelling {
+        margin: 8px 0;
+    }
+    
+    .cancelling-indicator {
+        font-size: 0.8em;
+    }
+}
+
+/* 下载管理器按钮样式 */
+.download-action-buttons {
+    display: flex;
+    margin-left: auto;
+    gap: 10px;
+}
+
+.download-manager-button {
+    background-color: #e0e0e0;
+    border: none;
+    border-radius: 4px;
+    padding: 5px 10px;
+    font-size: 0.9em;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.download-manager-button:hover {
+    background-color: #d0d0d0;
+}
+
+#cancelAllDownloads {
+    background-color: #ffe0e0;
+    color: #d32f2f;
+}
+
+#cancelAllDownloads:hover {
+    background-color: #ffcccc;
+}
+
+#cleanDownloads {
+    background-color: #e0f7fa;
+    color: #0288d1;
+}
+
+#cleanDownloads:hover {
+    background-color: #b2ebf2;
+}
+
+/* 黑暗模式支持 */
+body.dark-theme .download-manager-button {
+    background-color: #3a3a3a;
+    color: #e0e0e0;
+}
+
+body.dark-theme .download-manager-button:hover {
+    background-color: #4a4a4a;
+}
+
+body.dark-theme #cancelAllDownloads {
+    background-color: #3a2a2a;
+    color: #ff6b6b;
+}
+
+body.dark-theme #cancelAllDownloads:hover {
+    background-color: #4a3a3a;
+}
+
+body.dark-theme #cleanDownloads {
+    background-color: #2a3a3a;
+    color: #64b5f6;
+}
+
+body.dark-theme #cleanDownloads:hover {
+    background-color: #3a4a4a;
+}
+
+/* 下载项操作按钮样式 */
+.download-action-button {
+    padding: 4px 8px;
+    font-size: 0.85em;
+    border: none;
+    border-radius: 3px;
+    margin-left: 5px;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+/* 取消按钮 */
+.download-action-button[data-action="cancel"] {
+    background-color: #ff6b6b;
+    color: white;
+}
+
+.download-action-button[data-action="cancel"]:hover {
+    background-color: #ff4757;
+}
+
+/* 删除按钮 */
+.download-action-button[data-action="remove"] {
+    background-color: #ffe0e0;
+    color: #d32f2f;
+}
+
+.download-action-button[data-action="remove"]:hover {
+    background-color: #ffcccc;
+}
+
+/* 打开和打开目录按钮 */
+.download-action-button[data-action="open"],
+.download-action-button[data-action="folder"] {
+    background-color: #e0f7fa;
+    color: #0288d1;
+}
+
+.download-action-button[data-action="open"]:hover,
+.download-action-button[data-action="folder"]:hover {
+    background-color: #b2ebf2;
+}
+
+/* 重试按钮 */
+.download-action-button[data-action="retry"] {
+    background-color: #e8f5e9;
+    color: #388e3c;
+}
+
+.download-action-button[data-action="retry"]:hover {
+    background-color: #c8e6c9;
+}
+
+/* 黑暗模式支持 */
+body.dark-theme .download-action-button[data-action="cancel"] {
+    background-color: #b71c1c;
+    color: white;
+}
+
+body.dark-theme .download-action-button[data-action="cancel"]:hover {
+    background-color: #d32f2f;
+}
+
+body.dark-theme .download-action-button[data-action="remove"] {
+    background-color: #3a2a2a;
+    color: #ff6b6b;
+}
+
+body.dark-theme .download-action-button[data-action="remove"]:hover {
+    background-color: #4a3a3a;
+}
+
+body.dark-theme .download-action-button[data-action="open"],
+body.dark-theme .download-action-button[data-action="folder"] {
+    background-color: #2a3a3a;
+    color: #64b5f6;
+}
+
+body.dark-theme .download-action-button[data-action="open"]:hover,
+body.dark-theme .download-action-button[data-action="folder"]:hover {
+    background-color: #3a4a4a;
+}
+
+body.dark-theme .download-action-button[data-action="retry"] {
+    background-color: #2a3a2a;
+    color: #81c784;
+}
+
+body.dark-theme .download-action-button[data-action="retry"]:hover {
+    background-color: #3a4a3a;
+}
+
+#clearCompletedDownloads {
+    background-color: #f0f4c3;
+    color: #827717;
+}
+
+#clearCompletedDownloads:hover {
+    background-color: #e6ee9c;
+}
+
+body.dark-theme #clearCompletedDownloads {
+    background-color: #2a3a1a;
+    color: #c5e1a5;
+}
+
+body.dark-theme #clearCompletedDownloads:hover {
+    background-color: #3a4a2a;
+}
+
+/* 取消中的动画效果 */
+.cancelling-pulse {
+    animation: cancelling-pulse 1s infinite;
+    background-color: #ff6b6b !important;
+}
+
+@keyframes cancelling-pulse {
+    0% { opacity: 0.5; }
+    50% { opacity: 1; }
+    100% { opacity: 0.5; }
+}
+
+/* 下载取消状态的进度条 */
+.download-item.cancelling .download-progress-fill {
+    background-color: #ff6b6b;
+    background-image: linear-gradient(45deg, 
+        rgba(255, 255, 255, 0.2) 25%, 
+        transparent 25%, 
+        transparent 50%, 
+        rgba(255, 255, 255, 0.2) 50%, 
+        rgba(255, 255, 255, 0.2) 75%, 
+        transparent 75%, 
+        transparent);
+    background-size: 30px 30px;
+    animation: cancelling-stripes 1s linear infinite;
+}
+
+@keyframes cancelling-stripes {
+    0% { background-position: 0 0; }
+    100% { background-position: 30px 0; }
+} 
