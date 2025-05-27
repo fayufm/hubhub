@@ -245,7 +245,8 @@ h1 {
 }
 
 .tab-content.active {
-    display: block;
+    display: flex !important;
+    flex-direction: column;
 }
 
 /* Releases 样式 */
@@ -381,8 +382,9 @@ h1 {
 /* 下载管理器样式 */
 .download-manager {
     position: fixed;
-    top: 50px;
-    right: 20px;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
     width: 400px;
     max-height: 500px;
     background-color: #fff;
@@ -3167,4 +3169,150 @@ body.dark-theme .asset-download-button:hover {
 
 body.dark-theme .select-all-label {
     color: #bbb;
+}
+
+.stars-filter {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin: 15px 0;
+    align-items: center;
+}
+.stars-filter-label {
+    font-size: 14px;
+    margin-right: 8px;
+    color: #24292f;
+}
+.stars-filter-options {
+    display: flex;
+    gap: 8px;
+}
+.stars-filter-btn {
+    background-color: #f1f2f3;
+    border: 1px solid #e1e4e8;
+    border-radius: 6px;
+    padding: 6px 12px;
+    font-size: 14px;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+.stars-filter-btn.active {
+    background-color: #0366d6;
+    color: white;
+}
+.stars-filter-btn:hover {
+    background-color: #e1e4e8;
+}
+body.dark-theme .stars-filter-label {
+    color: #e1e4e8;
+}
+body.dark-theme .stars-filter-btn {
+    background-color: #2d2d2d;
+    color: #e1e4e8;
+    border-color: #444;
+}
+body.dark-theme .stars-filter-btn.active {
+    background-color: #0366d6;
+    color: white;
+}
+body.dark-theme .stars-filter-btn:hover {
+    background-color: #3d3d3d;
+}
+
+/* 下载设置输入栏美化 */
+.download-path-input {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+    margin-bottom: 8px;
+}
+#downloadPathInput {
+    flex: 1;
+    padding: 8px 12px;
+    border: 1.5px solid #ddd;
+    border-radius: 6px;
+    background-color: #f5f5f5;
+    color: #24292e;
+    font-size: 15px;
+    outline: none;
+    transition: border-color 0.2s, background-color 0.2s;
+}
+#downloadPathInput:focus {
+    border-color: #2ea44f;
+    background-color: #fff;
+}
+#selectDownloadPath {
+    padding: 8px 16px;
+    background-color: #2ea44f;
+    color: white;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 15px;
+    transition: background-color 0.2s;
+}
+#selectDownloadPath:hover {
+    background-color: #2c974b;
+}
+
+body.dark-theme #downloadPathInput {
+    background-color: #2d2d2d;
+    border-color: #444;
+    color: #e1e4e8;
+}
+body.dark-theme #downloadPathInput:focus {
+    background-color: #222;
+    border-color: #2ea44f;
+}
+body.dark-theme #selectDownloadPath {
+    background-color: #1976d2;
+}
+body.dark-theme #selectDownloadPath:hover {
+    background-color: #1256a3;
+}
+
+/* 热门项目筛选栏居中 */
+#trendingPage .page-header {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+#trendingPage .time-filter,
+#trendingPage .language-filter,
+#trendingPage .stars-filter {
+    justify-content: center;
+    align-items: center;
+    width: 100%;
+}
+#trendingPage .language-filter-options,
+#trendingPage .stars-filter-options {
+    justify-content: center;
+}
+@media (max-width: 768px) {
+    #trendingPage .time-filter,
+    #trendingPage .language-filter,
+    #trendingPage .stars-filter {
+        justify-content: flex-start;
+    }
+    #trendingPage .language-filter-options,
+    #trendingPage .stars-filter-options {
+        justify-content: flex-start;
+    }
+}
+
+.token-rate-info {
+    background: #f5f5f5;
+    border-radius: 8px;
+    padding: 4px 12px;
+    margin: 0 auto 6px auto;
+    max-width: 360px;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.03);
+    font-size: 13px;
+    color: #0366d6;
+    letter-spacing: 0.5px;
+}
+body.dark-theme .token-rate-info {
+    background: #23272e;
+    color: #79b8ff;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.12);
 }

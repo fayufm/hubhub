@@ -101,6 +101,16 @@
                         <button class="language-filter-btn" data-lang="swift" data-i18n="lang_swift">Swift</button>
                     </div>
                 </div>
+                <div class="stars-filter">
+                    <div class="stars-filter-label">星级筛选:</div>
+                    <div class="stars-filter-options">
+                        <button class="stars-filter-btn active" data-stars="100">100+</button>
+                        <button class="stars-filter-btn" data-stars="500">500+</button>
+                        <button class="stars-filter-btn" data-stars="1000">1000+</button>
+                        <button class="stars-filter-btn" data-stars="5000">5000+</button>
+                        <button class="stars-filter-btn" data-stars="10000">10000+</button>
+                    </div>
+                </div>
             </div>
             <div id="trendingResults" class="results-grid" style="min-height: 300px;"></div>
             <div class="loading-trending" id="loadingTrending">
@@ -119,6 +129,9 @@
             </div>
         </div>
     </div>
+
+    <!-- Token请求次数显示 -->
+    <div class="token-rate-info" id="tokenRateInfo" style="display:none; text-align:center; font-size:13px; color:#0366d6; margin-bottom:4px;"></div>
 
     <!-- 底部导航栏 -->
     <div class="bottom-nav">

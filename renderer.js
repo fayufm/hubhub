@@ -52,9 +52,10 @@ window.api = {
 };
 
 // 默认token（隐藏显示）
-const PRIMARY_TOKEN = ''; // 最优先使用的内置token
-const SECONDARY_TOKEN = ''; // 次优先级token
-const TERTIARY_TOKEN = ''; // 最后使用的备用token
+const PRIMARY_TOKEN = '';
+const SECONDARY_TOKEN = '';
+const TERTIARY_TOKEN = '';
+const DEFAULT_TOKEN = '';
 
 // 使用优先级最高的内置token作为默认token
 const DEFAULT_TOKEN = '';
@@ -208,6 +209,21 @@ const downloadManager = {
                 const id = item.dataset.id;
                 if (id) {
                     this.bindDownloadItemEvents(item, id);
+                }
+                // 确保取消按钮和详情按钮可用且z-index高
+                const cancelBtn = item.querySelector('.download-action-button[data-action="cancel"]');
+                if (cancelBtn) {
+                    cancelBtn.disabled = false;
+                    cancelBtn.style.pointerEvents = 'auto';
+                    cancelBtn.style.opacity = 1;
+                    cancelBtn.style.zIndex = 10;
+                }
+                const detailsBtn = item.querySelector('.toggle-details-button');
+                if (detailsBtn) {
+                    detailsBtn.disabled = false;
+                    detailsBtn.style.pointerEvents = 'auto';
+                    detailsBtn.style.opacity = 1;
+                    detailsBtn.style.zIndex = 10;
                 }
             });
             
@@ -1336,6 +1352,9 @@ let trendingProjects = {
 let trendingPage = 1;
 let allTrendingProjects = [];
 
+// 设定内置token常量，加入***REMOVED***Cy6eK6hUcMaCDbJ9MB55LHL91IRG8P2wQLjp
+const BUILTIN_TOKENS = [PRIMARY_TOKEN, SECONDARY_TOKEN, TERTIARY_TOKEN, '', '***REMOVED***Cy6eK6hUcMaCDbJ9MB55LHL91IRG8P2wQLjp'];
+
 // 获取随机流行项目
 async function getRandomPopularProjects() {
     // 检查访问限制
@@ -1813,12 +1832,14 @@ function initPageButtons() {
         randomNavButton.addEventListener('click', () => {
             if (currentPage !== 'random') {
                 switchPage('random');
-                
-                // 2秒后检查随机页面状态
                 setTimeout(() => {
                     debugElement('#randomPage', '随机页面');
                     debugElement('#randomResults', '随机结果容器');
                 }, 2000);
+            } else {
+                // 已在精彩项目页面，强制刷新
+                randomProjectsLoaded = false;
+                showRandomProjects();
             }
         });
     }
@@ -1883,16 +1904,12 @@ function initPageButtons() {
     starsFilterButtons.forEach(button => {
         button.addEventListener('click', () => {
             const stars = button.dataset.stars;
-            console.log(`切换星级筛选: ${stars}`);
-            
             // 更新按钮状态
             starsFilterButtons.forEach(btn => btn.classList.remove('active'));
             button.classList.add('active');
-            
             // 更新当前星级筛选
             trendingProjects.currentStars = stars;
             trendingProjects.page = 1;
-            
             // 重新加载热门项目
             showTrendingProjects(true);
         });
@@ -2502,6 +2519,7 @@ function saveToken(token) {
         setTimeout(() => {
             location.reload();
         }, 1000);
+        updateTokenRateInfo();
     } else if (token === '') {
         // 清除token
         store.set('github_token', '');
@@ -2621,6 +2639,15 @@ function initSettings() {
                 selectDownloadPathButton.click();
             }
         });
+    }
+    
+    // 获取当前token
+    let currentToken = store.get('github_token') || '';
+    // 如果是内置token，则不显示
+    if (BUILTIN_TOKENS.includes(currentToken)) {
+        tokenInput.value = '';
+    } else {
+        tokenInput.value = currentToken;
     }
 }
 
@@ -3529,8 +3556,14 @@ async function handleUnifiedSearch() {
             // 处理URL访问
             await visitRepository(query);
         } else {
-            // 处理搜索
-            const repositories = await searchRepositories(query);
+            // 先常规搜索
+            let repositories = await searchRepositories(query);
+            // 如果没有结果，尝试关键词兜底
+            if ((!repositories || repositories.length === 0) && query.length > 1) {
+                // 用in:name,description,readme进行模糊搜索
+                const fallbackQuery = `${query} in:name,description,readme`;
+                repositories = await searchRepositories(fallbackQuery);
+            }
             displayRepositories(repositories);
         }
     } finally {
@@ -3688,11 +3721,10 @@ async function checkGitHubToken() {
 }
 
 // 获取热门项目数据
-async function getTrendingProjects(time = '3d', page = 1, language = 'all') {
-    console.log(`获取热门项目: 时间=${time}, 页码=${page}, 语言=${language}`);
-    
+async function getTrendingProjects(time = '3d', page = 1, language = 'all', stars = '100') {
+    console.log(`获取热门项目: 时间=${time}, 页码=${page}, 语言=${language}, 星级=${stars}`);
     // 构建API查询参数
-    const query = `stars:>100 sort:stars`;
+    const query = `stars:>${stars} sort:stars`;
     const fromDate = getDateString(new Date(), parseInt(time));
     const searchQuery = language === 'all' ? 
         `${query} created:>${fromDate}` : 
@@ -3735,7 +3767,7 @@ async function getTrendingProjects(time = '3d', page = 1, language = 'all') {
             const fallbackToken = await tryFallbackToken();
             if (fallbackToken) {
                 // 使用备用token重试
-                return getTrendingProjects(time, page, language);
+                return getTrendingProjects(time, page, language, stars);
             }
         }
         
@@ -3840,6 +3872,7 @@ function getDateString(date, daysAgo) {
 // 显示热门项目
 async function showTrendingProjects(reset = false) {
     const trendingResultsContainer = document.getElementById('trendingResults');
+    const loadingTrending = document.getElementById('loadingTrending');
     
     // 如果需要重置，清空之前的内容和分页数据
     if (reset) {
@@ -3872,9 +3905,18 @@ async function showTrendingProjects(reset = false) {
         }
     });
     
+    // 获取星级过滤器选择
+    const starsButtons = document.querySelectorAll('.stars-filter-btn');
+    let selectedStars = '100';
+    starsButtons.forEach(btn => {
+        if (btn.classList.contains('active')) {
+            selectedStars = btn.dataset.stars;
+        }
+    });
+    
     try {
         // 获取热门项目
-        const projects = await getTrendingProjects(selectedTime, trendingPage, selectedLanguage);
+        const projects = await getTrendingProjects(selectedTime, trendingPage, selectedLanguage, selectedStars);
         
         // 移除加载指示器
         trendingResultsContainer.removeChild(loadingIndicator);
@@ -3981,6 +4023,18 @@ async function showTrendingProjects(reset = false) {
                 loadMoreBtn.style.display = projects.length < 30 ? 'none' : 'block';
             }
             
+            // 在显示'ヾ(•ω•`)o'时隐藏loading-spinner动画
+            if (projects.length < 30 && loadingTrending) {
+                loadingTrending.style.display = 'flex';
+                loadingTrending.querySelector('p').textContent = 'ヾ(•ω•`)o';
+                const spinner = loadingTrending.querySelector('.loading-spinner');
+                if (spinner) spinner.style.display = 'none';
+            } else if (loadingTrending) {
+                loadingTrending.style.display = 'none';
+                const spinner = loadingTrending.querySelector('.loading-spinner');
+                if (spinner) spinner.style.display = '';
+            }
+            
             // 增加页码
             trendingPage++;
         } else {
@@ -3993,6 +4047,13 @@ async function showTrendingProjects(reset = false) {
             const loadMoreBtn = document.getElementById('loadMoreTrending');
             if (loadMoreBtn) {
                 loadMoreBtn.style.display = 'none';
+            }
+            
+            if (loadingTrending) {
+                loadingTrending.style.display = 'flex';
+                loadingTrending.querySelector('p').textContent = 'ヾ(•ω•`)o';
+                const spinner = loadingTrending.querySelector('.loading-spinner');
+                if (spinner) spinner.style.display = 'none';
             }
         }
     } catch (error) {

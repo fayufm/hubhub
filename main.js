@@ -25,6 +25,12 @@ let mainWindow;
 // 下载项管理
 const downloads = new Map();
 
+// 默认token（隐藏显示）
+const PRIMARY_TOKEN = '';
+const SECONDARY_TOKEN = '';
+const TERTIARY_TOKEN = '';
+const DEFAULT_TOKEN = '';
+
 function createWindow() {
   mainWindow = new BrowserWindow({
     width: 1200,
@@ -37,7 +43,8 @@ function createWindow() {
       enableRemoteModule: true
     },
     backgroundColor: '#f5f5f5', // 设置背景色
-    icon: path.join(__dirname, 'assets/26.ico') // 设置应用图标
+    icon: path.join(__dirname, 'assets/26.ico'), // 设置应用图标
+    show: false // 先隐藏窗口
   });
 
   // 隐藏默认菜单栏
@@ -45,6 +52,11 @@ function createWindow() {
   mainWindow.removeMenu();
 
   mainWindow.loadFile('index.html');
+
+  // 窗口准备好后再显示
+  mainWindow.once('ready-to-show', () => {
+    mainWindow.show();
+  });
 }
 
 app.whenReady().then(() => {
@@ -126,10 +138,19 @@ function cleanupAllDownloads() {
   console.log('所有下载任务已清理完毕');
 }
 
+// 监听所有窗口关闭事件，确保清理下载
 app.on('window-all-closed', () => {
+  console.log('所有窗口已关闭，清理所有下载任务...');
+  cleanupAllDownloads();
   if (process.platform !== 'darwin') {
     app.quit();
   }
+});
+
+// 监听will-quit事件，确保清理下载
+app.on('will-quit', () => {
+  console.log('应用程序will-quit，清理所有下载任务...');
+  cleanupAllDownloads();
 });
 
 // 窗口控制 - 最小化
